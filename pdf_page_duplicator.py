@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
@@ -35,13 +36,18 @@ def _isolate_page_fields(page_obj, *, source_page_index: int, copy_index: int) -
     remap: dict[str, str] = {}
     annots = page_obj.get("/Annots", [])
 
-    for annot_ref in annots:
+    for idx, annot_ref in enumerate(annots):
         annot = annot_ref.get_object()
+        # Ensure each duplicated page has independent widget dictionaries.
+        # Without this, renaming one copy can leak into the others when the
+        # underlying annotation objects are shared.
+        annot = copy.deepcopy(annot)
+        annots[idx] = annot
         old_name = annot.get("/T")
         if old_name is None:
             continue
         old_name_str = str(old_name)
-        new_name = f"{old_name_str}__p{source_page_index + 1}_c{copy_index + 1}"
+        new_name = f"{old_name_str}_{copy_index + 2}"
         annot[NameObject("/T")] = TextStringObject(new_name)
         remap[old_name_str] = new_name
 
